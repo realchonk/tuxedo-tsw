@@ -11,7 +11,7 @@ help:
 	@printf "\tsudo make install\n"
 
 tuxedo-tsw: tuxedo-tsw.c
-	$(CC) -o $@ $<
+	$(CC) -o $@ $< $(CFLAGS)
 
 clean:
 	rm -f tuxedo-tsw

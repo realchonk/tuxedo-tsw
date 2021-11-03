@@ -15,6 +15,9 @@
 
 #define HIDRAW_DEVICE "/dev/hidraw0"
 
+static const char* tmpfile_path = "/tmp/tuxedo-tsw.tmp";
+static char buffer[10];
+
 static noreturn void panic(const char* fmt, ...) {
    va_list ap;
    va_start(ap, fmt);
@@ -30,15 +33,41 @@ static noreturn void panic(const char* fmt, ...) {
    exit(1);
 }
 
+static const char* read_tmpfile(void) {
+   FILE* file = fopen(tmpfile_path, "r");
+   if (!file) {
+      fprintf(stderr, "tuxedo-tsw: failed to read '%s': %s\n",
+            tmpfile_path, strerror(errno));
+      return "on";
+   }
+   fgets(buffer, sizeof(buffer), file);
+   fclose(file);
+   return buffer;
+}
+
+static void write_tmpfile(const char* text) {
+   FILE* file = fopen(tmpfile_path, "w");
+   if (!file) {
+      fprintf(stderr, "tuxedo-tsw: failed to update '%s': %s\n",
+            tmpfile_path, strerror(errno));
+      return;
+   }
+   fprintf(file, "%s\n", text);
+   fprintf(stderr, "tuxedo-tsw: new state: %s\n", text);
+   fclose(file);
+}
+
 int main(int argc, char** argv) {
    if (argc < 2) {
    print_usage:
-      puts("Usage: tuxedo-tsw <on/off>");
+      puts("Usage: tuxedo-tsw on|off|toggle");
       return 1;
    }
 
    bool enabled;
-   if (!strcmp(argv[1], "on")) enabled = true;
+   if (!strcmp(argv[1], "toggle"))
+      enabled = !!strcmp(read_tmpfile(), "on\n");
+   else if (!strcmp(argv[1], "on")) enabled = true;
    else if (!strcmp(argv[1], "off")) enabled = false;
    else goto print_usage;
 
@@ -52,5 +81,8 @@ int main(int argc, char** argv) {
       panic("failed to do ioctl() on " HIDRAW_DEVICE);
 
    close(fd);
+
+   write_tmpfile(enabled ? "on" : "off");
+
    return 0;
 }

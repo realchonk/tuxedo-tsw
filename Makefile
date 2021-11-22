@@ -9,6 +9,7 @@ help:
 	@printf "\tmake DEVICE=hidraw0 configure\n"
 	@printf "\tmake all\n"
 	@printf "\tsudo make install\n"
+	@printf "\tsudo make udev-reload\n"
 
 tuxedo-tsw: tuxedo-tsw.c
 	$(CC) -o $@ $< $(CFLAGS)
@@ -30,4 +31,8 @@ install: tuxedo-tsw
 	install -Dm644 tuxedo-tsw.1 $(PREFIX)/share/man/man1/tuxedo-tsw.1
 	install -Dm644 99-tuxedo-tsw.rules /etc/udev/rules.d/99-tuxedo-tsw.rules
 
-.PHONY: all help clean configure install
+udev-reload:
+	udevadm control --reload
+	udevadm trigger
+
+.PHONY: all help clean configure install udev-reload

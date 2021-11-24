@@ -13,10 +13,30 @@
 #include <stdio.h>
 #include <errno.h>
 
-#define HIDRAW_DEVICE "/dev/hidraw0"
+#define HID_NAME "UNIW0001:00 093A:0255"
 
 static const char* tmpfile_path = "/tmp/tuxedo-tsw.tmp";
 static char buffer[10];
+
+static int find_device(void) {
+   char path_uevent[50];
+   char line[100];
+   for (int i = 0; i < 10; ++i) {
+      snprintf(path_uevent, sizeof(path_uevent), "/sys/class/hidraw/hidraw%d/device/uevent", i);
+      FILE* file = fopen(path_uevent, "r");
+      if (!file)
+         break;
+      while (!feof(file)) {
+         fgets(line, sizeof(line), file);
+         if (!strcmp(line, "HID_NAME=" HID_NAME "\n")) {
+            fclose(file);
+            return i;
+         }
+      }
+      fclose(file);
+   }
+   return -1;
+}
 
 static noreturn void panic(const char* fmt, ...) {
    va_list ap;
@@ -71,14 +91,23 @@ int main(int argc, char** argv) {
    else if (!strcmp(argv[1], "off")) enabled = false;
    else goto print_usage;
 
-   const int fd = open(HIDRAW_DEVICE, O_WRONLY | O_NONBLOCK);
+   int n = find_device();
+   if (n < 0) {
+      errno = 0;
+      panic("failed to find device");
+   }
+
+   char device[30];
+   snprintf(device, sizeof(device), "/dev/hidraw%d", n);
+
+   const int fd = open(device, O_WRONLY | O_NONBLOCK);
    if (fd < 0)
-      panic("failed to open " HIDRAW_DEVICE);
+      panic("failed to open '%s'", device);
 
    char buffer[2] = { 0x07, enabled ? 0x03 : 0x00 };
 
    if (ioctl(fd, HIDIOCSFEATURE(sizeof(buffer)), buffer) < 0)
-      panic("failed to do ioctl() on " HIDRAW_DEVICE);
+      panic("failed to do ioctl() on '%s'", device);
 
    close(fd);
 

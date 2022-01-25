@@ -25,7 +25,7 @@ static int find_device(void) {
       snprintf(path_uevent, sizeof(path_uevent), "/sys/class/hidraw/hidraw%d/device/uevent", i);
       FILE* file = fopen(path_uevent, "r");
       if (!file)
-         break;
+         continue;
       while (!feof(file)) {
          fgets(line, sizeof(line), file);
          if (!strcmp(line, "HID_NAME=" HID_NAME "\n")) {
